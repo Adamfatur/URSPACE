@@ -193,7 +193,6 @@ Route::middleware('guest')->group(function () {
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
     Route::get('/2fa/verify', [AuthController::class, 'verify2faView'])->name('2fa.verify');
     Route::post('/2fa/verify', [AuthController::class, 'verify2fa'])->name('2fa.verify.post');
-    Route::post('/bypass-login', [AuthController::class, 'bypassLogin'])->name('login.bypass');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');

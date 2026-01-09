@@ -59,27 +59,6 @@
                         </div>
                     </form>
 
-                    @if(app()->environment('local'))
-                        <hr class="my-4">
-                        <div class="dev-bypass-section">
-                            <h5 class="text-center mb-3 text-secondary fw-bold small text-uppercase italic">Quick Login (Dev
-                                Only)</h5>
-                            <form action="{{ route('login.bypass') }}" method="POST">
-                                @csrf
-                                <div class="input-group">
-                                    <select name="role" class="form-select border-primary-subtle" required>
-                                        <option value="" disabled selected>Pilih Role...</option>
-                                        <option value="global_admin">Global Admin</option>
-                                        <option value="univ_admin">Univ Admin</option>
-                                        <option value="dept_admin">Dept Admin</option>
-                                        <option value="moderator">Moderator</option>
-                                        <option value="user">User</option>
-                                    </select>
-                                    <button type="submit" class="btn btn-outline-primary fw-bold">Go</button>
-                                </div>
-                            </form>
-                        </div>
-                    @endif
                 </div>
             </div>
         </div>

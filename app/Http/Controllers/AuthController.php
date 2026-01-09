@@ -176,28 +176,6 @@ class AuthController extends Controller
         return $candidate;
     }
 
-    public function bypassLogin(Request $request)
-    {
-        if (app()->environment('production')) {
-            abort(404);
-        }
-
-        $request->validate([
-            'role' => ['required', 'string', 'in:global_admin,univ_admin,dept_admin,moderator,user'],
-        ]);
-
-        $user = User::where('role', $request->role)->first();
-
-        if (!$user) {
-            return back()->with('error', 'User dengan role tersebut tidak ditemukan.');
-        }
-
-        Auth::login($user);
-        $request->session()->regenerate();
-
-        return redirect()->intended('/')->with('success', 'Berhasil masuk sebagai ' . $user->name);
-    }
-
     public function verify2faView()
     {
         if (!session()->has('auth.2fa.id')) {
