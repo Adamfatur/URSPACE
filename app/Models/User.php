@@ -1,0 +1,154 @@
+<?php
+
+namespace App\Models;
+
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+
+class User extends Authenticatable
+{
+    /** @use HasFactory<\Database\Factories\UserFactory> */
+    use HasFactory, Notifiable;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'name',
+        'username',
+        'email',
+        'password',
+        'role',
+        'is_banned',
+        'shadow_banned_until',
+        'bio',
+        'avatar',
+        'two_factor_secret',
+        // New Profile Fields
+        'nim',
+        'program_studi',
+        'fakultas',
+        'angkatan',
+        'headline',
+        'location',
+        'website',
+        'linkedin_url',
+        'github_url',
+        'is_open_to_work',
+        'open_to_work_types',
+        'profile_completed_at',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'is_open_to_work' => 'boolean',
+        'open_to_work_types' => 'array',
+        'profile_completed_at' => 'datetime',
+        'shadow_banned_until' => 'datetime',
+    ];
+
+    /**
+     * Check if user is currently shadow banned.
+     */
+    public function isShadowBanned(): bool
+    {
+        return $this->shadow_banned_until && $this->shadow_banned_until->isFuture();
+    }
+
+    // Relationships
+    public function threads()
+    {
+        return $this->hasMany(Thread::class);
+    }
+
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
+
+    public function likes()
+    {
+        return $this->hasMany(Like::class);
+    }
+
+    public function followers()
+    {
+        return $this->belongsToMany(User::class, 'follows', 'followed_id', 'follower_id');
+    }
+
+    public function following()
+    {
+        return $this->belongsToMany(User::class, 'follows', 'follower_id', 'followed_id');
+    }
+
+    public function experiences()
+    {
+        return $this->hasMany(UserExperience::class)->orderByDesc('is_current')->orderByDesc('start_date');
+    }
+
+    public function educations()
+    {
+        return $this->hasMany(UserEducation::class)->orderByDesc('is_current')->orderByDesc('start_year');
+    }
+
+    public function skills()
+    {
+        return $this->hasMany(UserSkill::class);
+    }
+
+    public function certifications()
+    {
+        return $this->hasMany(UserCertification::class)->orderByDesc('issue_date');
+    }
+
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    public function getAvatarUrlAttribute()
+    {
+        if (!$this->avatar) {
+            return null; // Or return a default avatar URL
+        }
+
+        if (str_starts_with($this->avatar, 'http')) {
+            return $this->avatar;
+        }
+
+        // Explicitly use S3 disk
+        return \Illuminate\Support\Facades\Storage::disk('s3')->url($this->avatar);
+    }
+
+    // Helper Methods
+    public function isProfileComplete(): bool
+    {
+        return !empty($this->nim) && !empty($this->program_studi) && !empty($this->angkatan);
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return $this->role === $role;
+    }
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+}
+
