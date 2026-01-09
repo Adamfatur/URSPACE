@@ -6,7 +6,12 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Laravel\Socialite\Facades\Socialite;
 
 class AuthController extends Controller
 {
@@ -44,9 +49,9 @@ class AuthController extends Controller
 
             // Send Email
             try {
-                \Illuminate\Support\Facades\Mail::to($user->email)->send(new \App\Mail\TwoFactorCode($user, $code));
+                Mail::to($user->email)->send(new \App\Mail\TwoFactorCode($user, $code));
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Mail fail: ' . $e->getMessage());
+                Log::error('Mail fail: ' . $e->getMessage());
             }
 
             // Store user ID in session for verify step and logout temporarily
@@ -59,6 +64,114 @@ class AuthController extends Controller
         return back()->withErrors([
             'email' => 'Email atau password salah.',
         ])->onlyInput('email');
+    }
+
+    public function redirectToGoogle()
+    {
+        if (!config('services.google.client_id') || !config('services.google.client_secret') || !config('services.google.redirect')) {
+            return redirect()->route('login')->with('error', 'Login dengan Google belum dikonfigurasi.');
+        }
+
+        return Socialite::driver('google')
+            ->stateless()
+            ->redirect();
+    }
+
+    public function handleGoogleCallback(Request $request)
+    {
+        try {
+            $googleUser = Socialite::driver('google')->stateless()->user();
+        } catch (\Exception $e) {
+            Log::warning('Google OAuth callback failed: ' . $e->getMessage());
+            return redirect()->route('login')->with('error', 'Gagal login dengan Google. Silakan coba lagi.');
+        }
+
+        $email = $googleUser->getEmail();
+        if (!$email) {
+            return redirect()->route('login')->with('error', 'Google tidak memberikan email.');
+        }
+
+        // Enforce Raharja email domain
+        if (!preg_match('/@(raharja\.info|raharja\.ac\.id)$/', $email)) {
+            return redirect()->route('login')->with('error', 'Hanya email @raharja.info atau @raharja.ac.id yang diperbolehkan.');
+        }
+
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            $name = $googleUser->getName() ?: Str::before($email, '@');
+            $baseUsername = Str::slug(Str::before($email, '@'), '_');
+            $username = $this->generateUniqueUsername($baseUsername);
+
+            $user = User::create([
+                'name' => $name,
+                'username' => $username,
+                'email' => $email,
+                'password' => Hash::make(Str::random(32)),
+                'role' => 'user',
+            ]);
+        }
+
+        // Update Google fields (if columns exist)
+        if (Schema::hasColumn('users', 'google_id')) {
+            $user->google_id = $googleUser->getId();
+        }
+
+        if (Schema::hasColumn('users', 'avatar') && $googleUser->getAvatar()) {
+            // Only set avatar if user doesn't have one yet
+            if (!$user->avatar) {
+                $user->avatar = $googleUser->getAvatar();
+            }
+        }
+
+        if (Schema::hasColumn('users', 'email_verified_at') && !$user->email_verified_at) {
+            $user->email_verified_at = now();
+        }
+
+        $user->save();
+
+        // Check if user is banned
+        if ($user->is_banned) {
+            return redirect()->route('login')->with('error', 'Akun Anda telah dibekukan. Hubungi administrator.');
+        }
+
+        // DEV BYPASS: Skip 2FA for Admin roles (same behavior as password login)
+        if (in_array($user->role, ['global_admin', 'univ_admin'])) {
+            Auth::login($user);
+            $request->session()->regenerate();
+            return redirect()->intended('/');
+        }
+
+        // Start 2FA flow (same as password login)
+        $code = rand(100000, 999999);
+        $user->two_factor_secret = bcrypt($code);
+        $user->save();
+
+        try {
+            Mail::to($user->email)->send(new \App\Mail\TwoFactorCode($user, $code));
+        } catch (\Exception $e) {
+            Log::error('Mail fail: ' . $e->getMessage());
+        }
+
+        $request->session()->put('auth.2fa.id', $user->id);
+        Auth::logout();
+
+        return redirect()->route('2fa.verify');
+    }
+
+    private function generateUniqueUsername(string $baseUsername): string
+    {
+        $baseUsername = preg_replace('/[^a-zA-Z0-9_\-]/', '', $baseUsername) ?: 'user';
+
+        $candidate = $baseUsername;
+        $counter = 1;
+
+        while (User::where('username', $candidate)->exists()) {
+            $counter++;
+            $candidate = $baseUsername . '_' . $counter;
+        }
+
+        return $candidate;
     }
 
     public function bypassLogin(Request $request)

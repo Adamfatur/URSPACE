@@ -49,6 +49,15 @@
                         </div>
                     </form>
 
+                    @if(config('services.google.client_id') && config('services.google.client_secret') && config('services.google.redirect'))
+                        <hr class="my-4">
+                        <div class="d-grid">
+                            <a href="{{ route('auth.google.redirect') }}" class="btn btn-outline-secondary btn-lg fw-bold rounded-pill">
+                                Masuk dengan Google
+                            </a>
+                        </div>
+                    @endif
+
                     @if(app()->environment('local'))
                         <hr class="my-4">
                         <div class="dev-bypass-section">

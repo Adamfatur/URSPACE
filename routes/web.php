@@ -165,6 +165,11 @@ Route::get('/rules', [ThreadController::class, 'rules'])->name('rules');
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'loginView'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+
+    // Social Login
+    Route::get('/auth/google', [AuthController::class, 'redirectToGoogle'])->name('auth.google.redirect');
+    Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallback'])->name('auth.google.callback');
+
     Route::get('/register', [AuthController::class, 'registerView'])->name('register');
     Route::post('/register', [AuthController::class, 'register'])->name('register.post');
     Route::get('/2fa/verify', [AuthController::class, 'verify2faView'])->name('2fa.verify');
