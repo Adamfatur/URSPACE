@@ -123,9 +123,23 @@ class UserEngagementService
             $followingBonus = '0';
         }
 
-        // Recency decay: posts older than 24h get reduced score
-        // SQLite doesn't have TIMESTAMPDIFF, so we use julianday
-        $recencyDecay = "(1.0 / (1.0 + (julianday('now') - julianday(created_at))))";
+        // Recency decay: older posts get reduced score.
+        // Must be DB-driver aware (SQLite != MySQL).
+        $driver = DB::connection()->getDriverName();
+        if (in_array($driver, ['mysql', 'mariadb'], true)) {
+            // Age in days
+            $ageDays = "(TIMESTAMPDIFF(SECOND, threads.created_at, NOW()) / 86400)";
+            $recencyDecay = "(1.0 / (1.0 + {$ageDays}))";
+        } elseif ($driver === 'pgsql') {
+            $ageDays = "(EXTRACT(EPOCH FROM (NOW() - threads.created_at)) / 86400)";
+            $recencyDecay = "(1.0 / (1.0 + {$ageDays}))";
+        } elseif ($driver === 'sqlsrv') {
+            $ageDays = "(DATEDIFF(SECOND, threads.created_at, GETDATE()) / 86400.0)";
+            $recencyDecay = "(1.0 / (1.0 + {$ageDays}))";
+        } else {
+            // SQLite fallback
+            $recencyDecay = "(1.0 / (1.0 + (julianday('now') - julianday(threads.created_at))))";
+        }
 
         // Inline subqueries for likes and posts count (SQLite compatible)
         $likesSubquery = "(SELECT COUNT(*) FROM likes WHERE likes.likeable_id = threads.id AND likes.likeable_type = 'App\\\\Models\\\\Thread')";
