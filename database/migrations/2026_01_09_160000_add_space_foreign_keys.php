@@ -14,7 +14,7 @@ return new class extends Migration {
         // Adding foreign keys after table creation is not supported on SQLite.
         // This migration is meant for MySQL / MariaDB.
         $driver = Schema::getConnection()->getDriverName();
-        if ($driver !== 'mysql') {
+        if (!in_array($driver, ['mysql', 'mariadb'], true)) {
             return;
         }
 
@@ -65,7 +65,7 @@ return new class extends Migration {
     public function down(): void
     {
         $driver = Schema::getConnection()->getDriverName();
-        if ($driver !== 'mysql') {
+        if (!in_array($driver, ['mysql', 'mariadb'], true)) {
             return;
         }
 
