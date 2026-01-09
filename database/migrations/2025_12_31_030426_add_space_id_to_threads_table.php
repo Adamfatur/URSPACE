@@ -11,7 +11,12 @@ return new class extends Migration {
     public function up(): void
     {
         Schema::table('threads', function (Blueprint $table) {
-            $table->foreignId('space_id')->nullable()->after('category_id')->constrained('spaces')->onDelete('cascade');
+            // Note: Do not add foreign key here to avoid migration-order issues on MySQL.
+            // The FK will be added in a later MySQL-only migration.
+            if (!Schema::hasColumn('threads', 'space_id')) {
+                $table->unsignedBigInteger('space_id')->nullable()->after('category_id');
+                $table->index('space_id');
+            }
         });
     }
 
@@ -21,8 +26,11 @@ return new class extends Migration {
     public function down(): void
     {
         Schema::table('threads', function (Blueprint $table) {
-            $table->dropForeign(['space_id']);
-            $table->dropColumn('space_id');
+            if (Schema::hasColumn('threads', 'space_id')) {
+                // FK (if any) is removed in the dedicated FK migration's down().
+                $table->dropIndex(['space_id']);
+                $table->dropColumn('space_id');
+            }
         });
     }
 };
