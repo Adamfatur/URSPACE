@@ -42,6 +42,18 @@ class AuthController extends Controller
                 return redirect()->intended('/');
             }
 
+            // Manual users must verify email before 2FA
+            if (method_exists($user, 'hasVerifiedEmail') && !$user->hasVerifiedEmail()) {
+                try {
+                    $user->sendEmailVerificationNotification();
+                } catch (\Exception $e) {
+                    Log::warning('Email verification notification failed: ' . $e->getMessage());
+                }
+
+                Auth::logout();
+                return redirect()->route('verification.notice')->with('error', 'Email belum diverifikasi. Silakan cek inbox.');
+            }
+
             // Generate 2FA Code
             $code = rand(100000, 999999);
             $user->two_factor_secret = bcrypt($code);
@@ -118,14 +130,15 @@ class AuthController extends Controller
         }
 
         if (Schema::hasColumn('users', 'avatar') && $googleUser->getAvatar()) {
-            // Only set avatar if user doesn't have one yet
+            // Store avatar (prefer keeping existing if already set)
             if (!$user->avatar) {
                 $user->avatar = $googleUser->getAvatar();
             }
         }
 
-        if (Schema::hasColumn('users', 'email_verified_at') && !$user->email_verified_at) {
-            $user->email_verified_at = now();
+        // SSO users are treated as verified by default
+        if (Schema::hasColumn('users', 'email_verified_at')) {
+            $user->email_verified_at = $user->email_verified_at ?: now();
         }
 
         $user->save();
@@ -142,21 +155,10 @@ class AuthController extends Controller
             return redirect()->intended('/');
         }
 
-        // Start 2FA flow (same as password login)
-        $code = rand(100000, 999999);
-        $user->two_factor_secret = bcrypt($code);
-        $user->save();
-
-        try {
-            Mail::to($user->email)->send(new \App\Mail\TwoFactorCode($user, $code));
-        } catch (\Exception $e) {
-            Log::error('Mail fail: ' . $e->getMessage());
-        }
-
-        $request->session()->put('auth.2fa.id', $user->id);
-        Auth::logout();
-
-        return redirect()->route('2fa.verify');
+        // SSO users do not require 2FA
+        Auth::login($user);
+        $request->session()->regenerate();
+        return redirect()->intended('/');
     }
 
     private function generateUniqueUsername(string $baseUsername): string

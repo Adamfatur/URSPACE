@@ -18,6 +18,16 @@
                         <div class="alert alert-success">{{ session('success') }}</div>
                     @endif
 
+                    @if(config('services.google.client_id') && config('services.google.client_secret') && config('services.google.redirect'))
+                        <div class="d-grid mb-4">
+                            <a href="{{ route('auth.google.redirect') }}" class="btn btn-primary btn-lg fw-bold rounded-pill">
+                                <i class="material-icons align-middle me-2">alternate_email</i>
+                                Login with Rinfo
+                            </a>
+                        </div>
+                        <div class="text-center text-muted small mb-3">atau masuk dengan akun manual</div>
+                    @endif
+
                     <form action="{{ route('login.post') }}" method="POST">
                         @csrf
                         <div class="mb-3">
@@ -40,7 +50,7 @@
                         </div>
 
                         <div class="d-grid mb-3">
-                            <button type="submit" class="btn btn-primary btn-lg fw-bold rounded-pill">Masuk</button>
+                            <button type="submit" class="btn btn-outline-primary btn-lg fw-bold rounded-pill">Masuk Manual</button>
                         </div>
 
                         <div class="text-center">
@@ -48,15 +58,6 @@
                                     class="text-primary text-decoration-none fw-bold">Daftar Sekarang</a></small>
                         </div>
                     </form>
-
-                    @if(config('services.google.client_id') && config('services.google.client_secret') && config('services.google.redirect'))
-                        <hr class="my-4">
-                        <div class="d-grid">
-                            <a href="{{ route('auth.google.redirect') }}" class="btn btn-outline-secondary btn-lg fw-bold rounded-pill">
-                                Masuk dengan Google
-                            </a>
-                        </div>
-                    @endif
 
                     @if(app()->environment('local'))
                         <hr class="my-4">
