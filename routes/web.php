@@ -78,6 +78,19 @@ Route::middleware(['auth', 'role:global_admin,univ_admin'])->prefix('admin')->na
     Route::post('/announcements', [App\Http\Controllers\Admin\AnnouncementController::class, 'store'])->name('announcements.store');
     Route::delete('/announcements/{announcement}', [App\Http\Controllers\Admin\AnnouncementController::class, 'destroy'])->name('announcements.destroy');
     Route::post('/announcements/{announcement}/toggle', [App\Http\Controllers\Admin\AnnouncementController::class, 'toggle'])->name('announcements.toggle');
+
+    // Reports Management
+    Route::get('/reports', [App\Http\Controllers\Admin\ReportsController::class, 'index'])->name('reports.index');
+    Route::post('/reports/{report}/resolve', [App\Http\Controllers\Admin\ReportsController::class, 'resolve'])->name('reports.resolve');
+    Route::post('/reports/{report}/dismiss', [App\Http\Controllers\Admin\ReportsController::class, 'dismiss'])->name('reports.dismiss');
+
+    // Settings
+    Route::get('/settings', [App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings.index');
+    Route::post('/settings', [App\Http\Controllers\Admin\SettingsController::class, 'update'])->name('settings.update');
+
+    // AI Dashboard
+    Route::get('/ai', [App\Http\Controllers\Admin\AIController::class, 'index'])->name('ai.dashboard');
+    Route::post('/ai/configure', [App\Http\Controllers\Admin\AIController::class, 'configure'])->name('ai.configure');
 });
 
 // Moderator Routes
