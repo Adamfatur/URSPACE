@@ -44,7 +44,7 @@ class SearchController extends Controller
                     $q->where('name', 'like', "%{$query}%")
                         ->orWhere('description', 'like', "%{$query}%");
                 })
-                ->select('name', 'slug', 'cover_image', 'members_count')
+                ->withCount('members') // Use withCount to dynamically get members_count
                 ->limit(5)
                 ->get();
 
@@ -84,12 +84,19 @@ class SearchController extends Controller
 
             $threads = $threadQuery->latest()->limit(10)->get()->map(function ($thread) use ($query) {
                 // Contextual snippet: if query is not in title/content, check posts
-                $snippet = \Str::limit($thread->content, 100);
+                $snippet = \Illuminate\Support\Str::limit($thread->content, 100);
+                
+                $title = (string) $thread->title;
+                $content = (string) $thread->content;
+                $q = strtolower((string) $query);
 
-                if (!empty($query) && !\Str::contains(strtolower($thread->title), strtolower($query)) && !\Str::contains(strtolower($thread->content), strtolower($query))) {
+                if (!empty($query) && 
+                    !\Illuminate\Support\Str::contains(strtolower($title), $q) && 
+                    !\Illuminate\Support\Str::contains(strtolower($content), $q)) {
+                    
                     $matchingPost = $thread->posts()->where('content', 'like', "%{$query}%")->first();
                     if ($matchingPost) {
-                        $snippet = '...' . \Str::limit($matchingPost->content, 100);
+                        $snippet = '...' . \Illuminate\Support\Str::limit($matchingPost->content, 100);
                     }
                 }
 
@@ -100,8 +107,8 @@ class SearchController extends Controller
                     'type' => $thread->type,
                     'has_video' => !empty($thread->video_url),
                     'user' => [
-                        'username' => $thread->user->username,
-                        'avatar' => $thread->user->avatar_url,
+                        'username' => $thread->user ? $thread->user->username : 'Unknown User',
+                        'avatar' => $thread->user ? $thread->user->avatar_url : asset('default-avatar.png'),
                     ],
                     'created_at' => $thread->created_at->diffForHumans(),
                     'space' => $thread->space ? ['name' => $thread->space->name] : null
