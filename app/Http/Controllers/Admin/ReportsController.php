@@ -165,6 +165,22 @@ class ReportsController extends Controller
     }
 
     /**
+     * Bulk dismiss multiple reports.
+     */
+    public function bulkDismiss(Request $request)
+    {
+        $ids = $request->input('report_ids', []);
+
+        if (empty($ids)) {
+            return back()->with('error', 'Tidak ada laporan yang dipilih.');
+        }
+
+        Report::whereIn('id', $ids)->update(['status' => 'dismissed']);
+
+        return back()->with('success', count($ids) . ' laporan berhasil ditolak.');
+    }
+
+    /**
      * Delete reported content and resolve report.
      */
     public function deleteContent(Report $report)

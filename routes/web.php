@@ -83,6 +83,8 @@ Route::middleware(['auth', 'role:global_admin,univ_admin'])->prefix('admin')->na
     Route::get('/reports', [App\Http\Controllers\Admin\ReportsController::class, 'index'])->name('reports.index');
     Route::post('/reports/{report}/resolve', [App\Http\Controllers\Admin\ReportsController::class, 'resolve'])->name('reports.resolve');
     Route::post('/reports/{report}/dismiss', [App\Http\Controllers\Admin\ReportsController::class, 'dismiss'])->name('reports.dismiss');
+    Route::post('/reports/bulk-resolve', [App\Http\Controllers\Admin\ReportsController::class, 'bulkResolve'])->name('reports.bulk-resolve');
+    Route::post('/reports/bulk-dismiss', [App\Http\Controllers\Admin\ReportsController::class, 'bulkDismiss'])->name('reports.bulk-dismiss');
 
     // Settings
     Route::get('/settings', [App\Http\Controllers\Admin\SettingsController::class, 'index'])->name('settings.index');
