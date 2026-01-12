@@ -32,23 +32,54 @@ class ReportsController extends Controller
             ->get()
             ->mapWithKeys(fn($item) => [class_basename($item->reported_type) => $item->count]);
 
-        // Most reported users (top 5)
-        $mostReportedUsers = User::select('users.*', DB::raw('count(reports.id) as report_count'))
-            ->join('reports', function ($join) {
-                $join->on('users.id', '=', DB::raw("
-                    CASE 
-                        WHEN reports.reported_type = 'App\\\\Models\\\\Thread' 
-                        THEN (SELECT user_id FROM threads WHERE threads.id = reports.reported_id)
-                        WHEN reports.reported_type = 'App\\\\Models\\\\Post' 
-                        THEN (SELECT user_id FROM posts WHERE posts.id = reports.reported_id)
-                        ELSE NULL 
-                    END
-                "));
-            })
-            ->groupBy('users.id')
-            ->orderByDesc('report_count')
-            ->take(5)
-            ->get();
+        // Most reported users (top 5) - Simplified query for MySQL strict mode
+        $mostReportedUsers = collect();
+        
+        try {
+            // Get thread authors with report count
+            $threadReports = DB::table('reports')
+                ->join('threads', function($join) {
+                    $join->on('reports.reported_id', '=', 'threads.id')
+                        ->where('reports.reported_type', '=', 'App\\Models\\Thread');
+                })
+                ->join('users', 'threads.user_id', '=', 'users.id')
+                ->select('users.id', 'users.name', 'users.username', 'users.avatar', DB::raw('COUNT(*) as report_count'))
+                ->groupBy('users.id', 'users.name', 'users.username', 'users.avatar')
+                ->get();
+
+            // Get post authors with report count
+            $postReports = DB::table('reports')
+                ->join('posts', function($join) {
+                    $join->on('reports.reported_id', '=', 'posts.id')
+                        ->where('reports.reported_type', '=', 'App\\Models\\Post');
+                })
+                ->join('users', 'posts.user_id', '=', 'users.id')
+                ->select('users.id', 'users.name', 'users.username', 'users.avatar', DB::raw('COUNT(*) as report_count'))
+                ->groupBy('users.id', 'users.name', 'users.username', 'users.avatar')
+                ->get();
+
+            // Merge and sum report counts per user
+            $merged = $threadReports->concat($postReports)
+                ->groupBy('id')
+                ->map(function($group) {
+                    $first = $group->first();
+                    return (object)[
+                        'id' => $first->id,
+                        'name' => $first->name,
+                        'username' => $first->username,
+                        'avatar' => $first->avatar,
+                        'report_count' => $group->sum('report_count')
+                    ];
+                })
+                ->sortByDesc('report_count')
+                ->take(5)
+                ->values();
+
+            $mostReportedUsers = $merged;
+        } catch (\Exception $e) {
+            // If query fails, just use empty collection
+            \Log::warning('Most reported users query failed: ' . $e->getMessage());
+        }
 
         // Filter query
         $query = Report::with(['reporter', 'reported']);

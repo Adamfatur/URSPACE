@@ -54,7 +54,7 @@ class AIController extends Controller
             ->take(5)
             ->get();
 
-        return view('admin.ai.dashboard', compact('stats', 'flaggedContent', 'priorityReports'));
+        return view('admin.ai.index', compact('stats', 'flaggedContent', 'priorityReports'));
     }
 
     /**
